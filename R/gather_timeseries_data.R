@@ -10,14 +10,14 @@ timeseries_db <- dbConnect(drv = RSQLite::SQLite(), "timeseries-db.sqlite")
 
 ## Import botrytis data ##
 
-let.data <- read.csv("../7_gene_results/lettuce/deseq/lettuce_gene_count_sizefactored_wideformat.csv") %>%
+let.data <- read.csv("data/lettuce_gene_count_sizefactored_wideformat.csv") %>%
   gather(key = treatment, value = counts, -X)
-bot.data <- read.csv("../7_gene_results/bot/deseq/bot_gene_count_sizefactored_wideformat.csv")[,1:49] %>%
+bot.data <- read.csv("data/bot_gene_count_sizefactored_wideformat.csv")[,1:49] %>%
   gather(key = treatment, value = counts, -X)
 
-let.vst <- read.csv("../7_gene_results/lettuce/deseq/lettuce_gene_count_sizefactored_wideformat_vst.csv") %>%
+let.vst <- read.csv("data/lettuce_gene_count_sizefactored_wideformat_vst.csv") %>%
   gather(key = treatment, value = vst, -X) %>% mutate(vst = vst-min(vst))
-bot.vst <- read.csv("../7_gene_results/bot/deseq/bot_gene_count_sizefactored_wideformat_vst.csv")[,1:49] %>%
+bot.vst <- read.csv("data/bot_gene_count_sizefactored_wideformat_vst.csv")[,1:49] %>%
   gather(key = treatment, value = vst, -X) %>% mutate(vst = vst-min(vst))
 
 vst.data <- rbind(let.vst, bot.vst) %>%
@@ -47,7 +47,7 @@ dbWriteTable(timeseries_db, "letbot", let.bot.data, overwrite = TRUE)
 
 # Lettuce VST data
 
-let.sclero.vst.data <- read.csv("../Lettuce_sclerotinia_data/lettuce_only_factored_vst.csv") %>%
+let.sclero.vst.data <- read.csv("data/lettuce_only_factored_vst.csv") %>%
   select("gene" = "X", everything()) %>% 
   gather(key = treatment, value = vst, -gene) %>%
   separate(col = treatment, into = c("treatment", "timepoint", "replicate"), sep = "_") %>%
