@@ -14,20 +14,23 @@ library(cowplot)
 library(shiny)
 library(scales)
 library(RSQLite)
-library(plotly)
 
 ########################################################
 # Define UI for application that plots gene expression #
 ########################################################
 
 ui <- fluidPage(
+  
    # Application title
   titlePanel("Denby Lab Timeseries Data Plot"),
    
    # Sidebar with input fields 
    verticalLayout(
       #inputPanel(
-         textAreaInput(inputId = "genes", label = "Genes:", value = "Lsat_1_v5_gn_4_1201, Bcin02g05780", resize = "both"),
+         textAreaInput(inputId = "genes", 
+                       label = "Genes:", 
+                       value = "Lsat_1_v5_gn_4_1201, Bcin02g05780", 
+                       resize = "both"),
          br(),
          selectInput('pathosystem', 
                      "Timeseries data:", 
@@ -48,7 +51,7 @@ ui <- fluidPage(
       
       # Show a plot of the generated distribution
      
-     plotOutput("genePlot"), # Change so that if height = rows*2, based on number of genes in plot?
+     plotOutput("genePlot"),
      downloadButton(outputId = 'downloadPlot', label = "Download Plot"),
      downloadButton(outputId = 'downloadData', label = "Download CSV")
    )
@@ -61,7 +64,7 @@ ui <- fluidPage(
 
 server <- function(input, output) {
   
-  timeseries_db <- dbConnect(drv = RSQLite::SQLite(), "timeseries-db.sqlite")
+  timeseries_db <- dbConnect(drv = RSQLite::SQLite(), "../data/timeseries-db.sqlite")
   
   output$genePlot <- renderPlot({
     
@@ -69,7 +72,7 @@ server <- function(input, output) {
     gene_list <- input$genes %>%
       gsub(pattern = "\n", replacement = " ", x = ., perl = TRUE) %>%
       gsub(pattern = ",", replacement = " ", x = ., perl = TRUE) %>%
-      gsub(pattern = "  ", replacement = " ", x = ., perl = TRUE)
+      gsub(pattern = "[ ]+", replacement = " ", x = ., perl = TRUE)
     gene_list <- strsplit(x = gene_list, split = " ")[[1]]
     
     # Retrieve data from SQL database using parameterised query:
@@ -78,7 +81,8 @@ server <- function(input, output) {
     dbBind(rs, param = list(genes = gene_list))
     select.data <- dbFetch(rs)
     
-    # Select the expression data
+    # Select the expression data (since the array doesn't have counts or VST)
+    
     if(input$pathosystem != "athalbot"){
       select.data <- select.data %>% mutate_("expression" = input$dataformat)
     }
@@ -89,12 +93,20 @@ server <- function(input, output) {
     
     # Create plot for data:
     
-    gene.plot <-  ggplot(data = select.data, aes(x = timepoint, y = expression, colour = treatment, group = treatment, fill = treatment)) +
+    gene.plot <-  ggplot(data = select.data, aes(x = timepoint, 
+                                                 y = expression, 
+                                                 colour = treatment, 
+                                                 group = treatment, 
+                                                 fill = treatment)) +
       ylab("Expression") +
       xlab("Hours Post Infection (hpi)") +
-      scale_y_continuous(breaks = pretty_breaks(n = 8), expand = c(0.001, 1)) +
-      scale_x_continuous(limits = c(min(select.data$timepoint), max(select.data$timepoint)), breaks = seq(9, 54, by = 3)) + 
-      labs(colour = "Treatment", group = "Treatment", fill = "Treatment") +
+      scale_y_continuous(breaks = pretty_breaks(n = 8), 
+                         expand = c(0.001, 1)) +
+      scale_x_continuous(limits = c(min(select.data$timepoint), max(select.data$timepoint)), 
+                         breaks = seq(9, 54, by = 3)) + 
+      labs(colour = "Treatment", 
+           group = "Treatment", 
+           fill = "Treatment") +
       facet_wrap(~gene, scales = "free") +
       theme(strip.background = element_blank())
 
@@ -103,12 +115,16 @@ server <- function(input, output) {
     }
     
     if(input$smoothButton == TRUE){
-      gene.plot <- gene.plot + geom_smooth(method = "loess", mapping = aes(fill = treatment))
+      gene.plot <- gene.plot + geom_smooth(method = "loess", 
+                                           mapping = aes(fill = treatment))
     }
     
     if(input$meanButton == TRUE){
       gene.plot <- gene.plot + 
-        stat_summary(fun.y = "mean", fun.ymin = function(x) mean(x) - sd(x)/sqrt(length(x)), fun.ymax = function(x) mean(x) + sd(x)/sqrt(length(x)), geom = "ribbon", alpha = 0.3) + 
+        stat_summary(fun.y = "mean", 
+                     fun.ymin = function(x) mean(x) - sd(x)/sqrt(length(x)), 
+                     fun.ymax = function(x) mean(x) + sd(x)/sqrt(length(x)), 
+                     geom = "ribbon", alpha = 0.3) + 
         stat_summary(fun.y = "mean", geom = "line")
     }
     
@@ -122,7 +138,8 @@ server <- function(input, output) {
     
     if(input$pathosystem == "athalbot"){
       gene.plot <- gene.plot + 
-        scale_x_continuous(limits = c(min(select.data$timepoint), max(select.data$timepoint)), breaks = seq(0, 48, by = 2)) +
+        scale_x_continuous(limits = c(min(select.data$timepoint), max(select.data$timepoint)),
+                           breaks = seq(0, 48, by = 2)) +
         ylab("Relative Expression")
     }
     
@@ -161,9 +178,4 @@ shinyApp(ui = ui, server = server)
 #####################################
 # To do:
 # - Conversion of ATG to Lsat
-# - add ability to fix y-axis:
-  # - just add on option: scale_y_continuous(limits = c(floor(min(select.data$expression)), ceiling(max(select.data$expression))))
-# - convert to using SQL database as input
-# - retrieve data using sql query
-# - Use plotly for plotting?
-  ## easy to change, just replace plotOutput with plotlyOutput and renderPlot with renderPlotly, however it screws up the axis currently.
+# - Use plotly for plotting
